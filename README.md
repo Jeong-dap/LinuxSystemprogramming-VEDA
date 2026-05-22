@@ -120,5 +120,3 @@ minishell> exit
 - OS: Linux (Ubuntu/Debian 계열)
 - 컴파일러: GCC
 - 표준: POSIX.1-2008
-
-각 챕터 예제는 단일 파일로 구성되어 있어 아래 명령으로 바로 컴파일할 수 있습니다.
