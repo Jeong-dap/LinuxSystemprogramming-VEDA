@@ -76,7 +76,7 @@ lsnp/
 
 ## LAB — 미니쉘 (`lab/`)
 
-`fork` + `exec` + 시그널 처리를 결합한 미니 POSIX 쉘입니다.
+`포크` + `exec` + 시그널 처리를 결합한 미니 POSIX 쉘입니다.
 
 ### 파일 구성
 
@@ -85,7 +85,7 @@ lsnp/
 | main.c | 프롬프트 루프, SIGINT 무시, SIGCHLD 등록 |
 | parsing.c | 입력 라인 → `char**` 토큰 배열 변환 |
 | isbuiltin.c | 내장 명령어 (`cd`, `pwd`, `hostname`) 처리 |
-| isexecutable.c | 외부 실행 파일 `fork`/`exec`, 파이프(`\|`), 백그라운드(`&`) |
+| isexecutable.c | 외부 실행 파일 `포크`/`exec`, 파이프(`\|`), 백그라운드(`&`) |
 | child_handler.c | SIGCHLD 핸들러 — `waitpid`로 좀비 프로세스 회수 |
 | minishell.h | 함수 선언 및 `BT_TYPE` 구조체 |
 
@@ -115,7 +115,7 @@ minishell> exit
 
 ---
 
-## 빌드 환경
+### 빌드 환경
 
 - OS: Linux (Ubuntu/Debian 계열)
 - 컴파일러: GCC
