@@ -1,5 +1,9 @@
 # Compiled object files
 *.o
+*.exe
+
+# lecture notes
+lecture_notes/
 
 # Compiled executables (no extension)
 ex[0-9][0-9]
