@@ -5,7 +5,7 @@
 
 int main(void)
 {
-    FILE *fp;
+    FILE *fp;       // popen()이 반환하는 파일 포인터
     int m;
 
     /* "grep 'Hello'"를 자식으로 실행하고, 쓰기 파이프("w")를 연다.
