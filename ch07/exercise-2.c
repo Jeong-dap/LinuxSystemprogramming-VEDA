@@ -11,8 +11,8 @@ int main(void)
     int msgid1, msgid2, n;
     char buf[1024];
     struct mymsgbuf {
-    long m_type;
-    char m_str[1024];
+        long m_type;
+        char m_str[1024];
     } sendbuf, recvbuf;
 
     if((msgid1=msgget(0x123401,IPC_CREAT|0666))==-1)
