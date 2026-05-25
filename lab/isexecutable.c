@@ -7,6 +7,7 @@
 #include <string.h>
 #include <signal.h>
 #include <errno.h>
+#include <fcntl.h>
 #include "minishell.h"
 
 #define MAXSIZE 4096
@@ -114,6 +115,14 @@ int is_background(char **arglist) {
 int is_pipe(char **arglist) {
     for (int i = 0; arglist[i] != NULL; i++) {
         if (strcmp(arglist[i], "|") == 0)
+            return 1;
+    }
+    return 0;
+}
+
+int is_redirect(char **arglist) {
+    for (int i = 0; arglist[i] != NULL; i++) {
+        if (strcmp(arglist[i], ">") == 0)
             return 1;
     }
     return 0;
