@@ -21,6 +21,7 @@ int main(void)
        perror("msgget");
        exit(1);
    }
+
    if((msgid2=msgget(0x123402,IPC_CREAT|0666))==-1)
    {
        perror("msgget");
@@ -37,7 +38,7 @@ int main(void)
        if(!strncmp(buf,"end",3))
         break;
 
-       n=msgrcv(msgid2,&recvbuf,1024,1,0);
+       n=msgrcv(msgid2,&recvbuf,1024,2,0);
        recvbuf.m_str[n]='\0';
        printf(">> %s\n",recvbuf.m_str);
        if(!strncmp(recvbuf.m_str,"end",3))

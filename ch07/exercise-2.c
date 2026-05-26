@@ -36,13 +36,13 @@ int main(void)
             break;
         printf(" Input --> ");
         fgets(buf, 1023, stdin);
-        sendbuf.m_type=1;
+        sendbuf.m_type=2;
         strcpy(sendbuf.m_str, buf);
         msgsnd(msgid2, &sendbuf, strlen(sendbuf.m_str), 0);
         if(!strncmp(buf,"end",3))
             break;
     }
-    msgctl(msgid1, IPC_RMID, 0);  /* 메시지 큐 제거 (커널 자원 반납) */
-    msgctl(msgid2, IPC_RMID, 0);  /* 메시지 큐 제거 (커널 자원 반납) */
+    msgctl(msgid1, IPC_RMID, 0);
+    msgctl(msgid2, IPC_RMID, 0);
     return 0;
 }
