@@ -1,0 +1,23 @@
+#include <wiringPi.h>
+#include <wiringPiI2C.h>
+int main (void) {
+    int fd;
+    int i, cnt;
+    int a2dChannel = 3; // analog channel AIN3, VR
+    int prev, a2dVal; float a2dVol; float Vref = 5.0;
+    printf("[ADC/DAC(YL-40) Module testing........]\n");
+    if((fd = wiringPiI2CSetup(0x48))<0) {
+        printf("wiringPiI2CSetup failed:\n");
+    }
+    cnt = 0;
+    
+    while(1) {
+        wiringPiI2CWrite(fd, 0x00 | a2dChannel); // 0000_0011
+        prev = wiringPiI2CRead(fd); // Previously byte, garvage
+        printf("[%d] previous = %d, ", cnt, prev);
+        a2dVal = wiringPiI2CRead(fd);
+        printf("2nd a2dVal = %d, ", a2dVal); a2dVol = 5.0 - (a2dVal * Vref / 255); printf("a2dVol = %f[V]\n", a2dVol);
+        delay(1000);
+        cnt++;
+    }
+}

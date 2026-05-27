@@ -1,21 +1,18 @@
 CC = aarch64-linux-gnu-gcc
-LDLIBS = -lwiringPi -lcrypt
-LIBOBJS = led.o
-SENDOBJS = main libcontrol.so
 
-all: main send
+SRCS = led.c wiring.c
+LIB_TARGET = libled.so
+MAIN_TARGET = main
 
-%.o: %.c
-	$(CC) -c -fPIC $<
+all: $(LIB_TARGET) $(MAIN_TARGET)
 
-libcontrol.so: $(LIBOBJS)
-	$(CC) -shared -o libcontrol.so *.o $(LDLIBS)
+$(LIB_TARGET): $(SRCS)
+	$(CC) $(CFLAGS) -shared -fPIC -o $@ $^ -lwiringPi -lcrypt
 
-main: main.c libcontrol.so
-	$(CC) main.c -o main -ldl
-
-send: $(SENDOBJS)
-	scp $(SENDOBJS) njd990603@127.20.33.119:/home/njd990603/
+$(MAIN_TARGET): main.c
+	$(CC) $(CFLAGS) -o $@ $< -ldl
 
 clean:
-	rm -f *.o *.so main
+	rm -f $(LIB_TARGET) $(MAIN_TARGET)
+
+.PHONY: all clean

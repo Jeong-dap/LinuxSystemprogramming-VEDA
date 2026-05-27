@@ -1,80 +1,148 @@
-/*
- * blink.c:
- *	Standard "blink" program in wiringPi. Blinks an LED connected
- *	to the first GPIO pin.
- *
- * Copyright (c) 2012-2013 Gordon Henderson.
- ***********************************************************************
- * This file is part of wiringPi:
- *      https://github.com/WiringPi/WiringPi
- *
- *    wiringPi is free software: you can redistribute it and/or modify
- *    it under the terms of the GNU Lesser General Public License as published by
- *    the Free Software Foundation, either version 3 of the License, or
- *    (at your option) any later version.
- *
- *    wiringPi is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU Lesser General Public License for more details.
- *
- *    You should have received a copy of the GNU Lesser General Public License
- *    along with wiringPi.  If not, see <http://www.gnu.org/licenses/>.
- ***********************************************************************
- */
-
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include <string.h>
-#include <unistd.h>
 #include <dlfcn.h>
 
-// LED Pin - wiringPi pin 0 is BCM_GPIO 17.
+void* led_thread(void* arg)
+{
+	void *handle = NULL;
+	void (*led_func)(char *);
+	char* err_msg;
 
-void * led_thread(void *arg) {
-  printf("[THREAD] ENTRY POINT\n");
+	handle = dlopen("./libled.so", RTLD_LAZY);
+	if (!handle) {
+		fprintf(stderr, "dlopen error\n");
+		goto err;
+	}
 
-  void *handle;
-  void (*function_pointer)(char *);
-  char *error;
+	dlerror();
 
-  handle = dlopen("./libcontrol.so", RTLD_LAZY);
-  if(!handle){
-    fprintf(stderr, "%s\n", dlerror());
-    exit(EXIT_FAILURE);
-  }
-  dlerror(); // clear error
+	led_func = (void (*)(char *))dlsym(handle, "led_function");
 
-  char * func_name = "led_function";
-  function_pointer = dlsym(handle, func_name);
-  error = dlerror();
-  if (error != NULL) {
-        fprintf(stderr, "%s\n", error);
-        exit(EXIT_FAILURE);
-  }    
-  printf("[CALLING LED FUNCTION]\n");
-  function_pointer((char*)arg);
+	err_msg = dlerror();
+
+	if (err_msg != NULL) {
+		fprintf(stderr, "dlsym error: %s\n", err_msg);
+		goto err;
+	}
+
+	led_func((char *)arg);
+
 	dlclose(handle);
 
-  return NULL;
+	return NULL;
+err:
+	if (handle) {
+		dlclose(handle);
+	}
 
+	return NULL;
 }
 
-int main (int argc, char * argv[])
+void* cds_thread(void* arg)
 {
-  if (argc!=2) {
-    fprintf(stderr, "%d, [ON | OFF] \n", argc);
-  }
+	void *handle = NULL;
+	void (*cds_func)(char *);
+	char* err_msg;
 
-  printf ("Raspberry Pi MAIN\n");
+	handle = dlopen("./libled.so", RTLD_LAZY);
+	if (!handle) {
+		fprintf(stderr, "dlopen error\n");
+		goto err;
+	}
 
-  pthread_t tid;
-  if (pthread_create(&tid, NULL, led_thread, argv[1]) != 0) {
-    perror("pthread_create");
-    exit(1);
-  }
+	dlerror();
 
-  pthread_join(tid, NULL);  
-  return 0 ;
+	cds_func = (void (*)(char *))dlsym(handle, "cds_function");
+
+	err_msg = dlerror();
+
+	if (err_msg != NULL) {
+		fprintf(stderr, "dlsym error: %s\n", err_msg);
+		goto err;
+	}
+
+	cds_func((char *)arg);
+
+	dlclose(handle);
+
+	return NULL;
+err:
+	if (handle) {
+		dlclose(handle);
+	}
+
+	return NULL;
+}
+
+void print_menu(void)
+{
+	printf("\n===============================\n");
+	printf("1. LED\n");
+	printf("2. CDS\n");
+	printf("3. EXIT\n");
+	printf("===============================\n");
+	printf("Input > ");
+}
+
+int main (int argc, char **argv)
+{
+	int menu;
+	char buf[80];
+	pthread_t tid, tid2;
+
+	while (1) {
+		print_menu();	
+		scanf("%d", &menu);
+
+		if (menu == 1) {
+			while (1) {
+				printf("Usage: [ON | OFF | BLINK | Q]\n");
+
+				printf("LED Input> ");
+				memset(buf, 0, sizeof(buf));
+				scanf("%s", buf);
+
+				if (strcmp(buf, "Q") == 0 || strcmp(buf, "q") == 0) {
+					break;
+				}
+
+				if (pthread_create(&tid, NULL, led_thread, buf)) {
+					perror("pthread_create");
+					exit(-1);
+				}
+
+				pthread_join(tid, (void **)NULL);
+			}
+		}
+		else if (menu == 2) {
+			printf("Usage: [ON | OFF]\n");
+
+			printf("CDS Input> ");
+			memset(buf, 0, sizeof(buf));
+			scanf("%s", buf);
+
+			if (strcmp(buf, "OFF") == 0) {
+				pthread_cancel(tid2);
+			}
+			else {
+				if (pthread_create(&tid2, NULL, cds_thread, buf)) {
+					perror("pthread_create");
+					exit(-1);
+				}
+
+				pthread_detach(tid2);
+			}
+		}
+		else if (menu == 3) {
+			printf("Exit...\n");
+			exit(0);
+		}
+		else {
+			printf("\nSelect mode only [1 | 2 | 3]\n");
+		}
+	}
+
+	return 0;
 }

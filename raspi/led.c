@@ -1,53 +1,51 @@
-/*
- * blink.c:
- *	Standard "blink" program in wiringPi. Blinks an LED connected
- *	to the first GPIO pin.
- *
- * Copyright (c) 2012-2013 Gordon Henderson.
- ***********************************************************************
- * This file is part of wiringPi:
- *      https://github.com/WiringPi/WiringPi
- *
- *    wiringPi is free software: you can redistribute it and/or modify
- *    it under the terms of the GNU Lesser General Public License as published by
- *    the Free Software Foundation, either version 3 of the License, or
- *    (at your option) any later version.
- *
- *    wiringPi is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU Lesser General Public License for more details.
- *
- *    You should have received a copy of the GNU Lesser General Public License
- *    along with wiringPi.  If not, see <http://www.gnu.org/licenses/>.
- ***********************************************************************
- */
-
 #include <stdio.h>
-#include <wiringPi.h>
-#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <wiringPi.h>
 
-// LED Pin - wiringPi pin 0 is BCM_GPIO 17.
+#define	LED	1
 
-#define	LED 1
-
-void led_function(char* arg) {
-  wiringPiSetup();
-  pinMode (LED, OUTPUT);
-  // printf("[LED FUNCTION]\n");
-
-  printf("[LED FUNCTION DEBUG] arg:%s\n", arg);
-
-  if (strcmp(arg, "ON") == 0) {
-    printf("[LED FUNCTION] TURING ON\n");
-    digitalWrite(LED, HIGH);
-  } else {
-    printf("[LED FUNCTION] TURING OFF\n");
-    digitalWrite(LED, LOW);
-  }
-
-  return;
+static void led_on()
+{
+	digitalWrite(LED, HIGH);
 }
 
+static void led_off()
+{
+	digitalWrite(LED, LOW);
+}
+
+static void led_blink()
+{
+	digitalWrite(LED, HIGH);
+	delay(500);
+	digitalWrite(LED, LOW);
+	delay(500);
+}
+
+struct command_map {
+	const char *command;
+	void (*action)(void);
+};
+
+const static struct command_map lut[] = {
+	{"ON", led_on},
+	{"OFF", led_off},
+	{"BLINK", led_blink}
+};
+
+const static int lut_size = sizeof(lut) / sizeof(lut[0]);
+
+void led_function(char* arg)
+{
+	wiringPiSetup();
+	pinMode(LED, OUTPUT);
+
+	for (int i = 0; i < lut_size; i++) {
+		if (strcmp(arg, lut[i].command) == 0) {
+			lut[i].action();
+			return;
+		}
+	}
+}
