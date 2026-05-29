@@ -9,7 +9,6 @@
 #include<errno.h>
 
 #define MAXDATASIZE 100
-#define BACKLOG 10
 
 int main()
 {
