@@ -17,6 +17,8 @@ lsnp/
 ├── ch06/       # 시그널 (sigset, sigprocmask, sigaction)
 ├── ch06-2/     # 프로세스 그룹 & 세션 (setpgid, kill to group)
 ├── ch07/       # IPC — 파이프 (popen, pipe, dup+exec)
+├── ch08/       # POSIX 스레드 (pthread_create, mutex, 시그널)
+├── ch09/       # 소켓 프로그래밍 (TCP/UDP, 주소 변환)
 └── lab/        # 미니쉘 프로젝트
 ```
 
@@ -71,6 +73,34 @@ lsnp/
 | ex01.c | `popen("grep 'Hello'", "w")`으로 파이프 출력 |
 | ex02.c | `pipe()` + `fork()`로 자식→부모 단방향 통신 |
 | ex03.c | `dup()` + `execlp("ls")`로 stdout을 파이프로 리다이렉트 |
+
+### ch08 — POSIX 스레드
+| 파일 | 내용 |
+|------|------|
+| ex01.c | `pthread_create` + `pthread_join` 기본 스레드 생성 |
+| ex02.c | `pthread_cancel` + `pthread_setcancelstate`로 취소 제어 |
+| ex03.c | `pthread_detach` + `pthread_self`로 detach 모드 |
+| ex04.c | 스레드 간 데이터 전달 (`void *` 인자) |
+| ex05.c | `pthread_mutex_t`로 공유 변수 동기화 |
+| ex05-1.c | mutex + `pthread_cleanup_push/pop` 정리 핸들러 |
+| ex08.c | `pthread_sigmask`로 스레드별 시그널 마스킹 |
+| ex09.c | 전용 시그널 처리 스레드 분리 패턴 |
+| ex10.c | `PTHREAD_MUTEX_INITIALIZER` + cleanup handler |
+| exercise.c | 종합 실습 |
+
+### ch09 — 소켓 프로그래밍
+| 파일 | 내용 |
+|------|------|
+| ex01.c | `htons()`로 바이트 오더(엔디언) 변환 |
+| ex02.c | `inet_addr`, `inet_aton`, `inet_ntoa`로 IP 주소 변환 |
+| ex03.c | `socket` + `bind` + `listen` + `accept` TCP 서버 기본 |
+| ex04.c | `getaddrinfo`로 호스트명 → IP 주소 조회 |
+| ex05.c | `fork()` 기반 멀티클라이언트 TCP 서버 |
+| ex06.c | TCP 클라이언트 (`gethostbyname` + `connect` + `recv`) |
+| tcpProgramming/ex01.c | `pthread` 기반 멀티클라이언트 TCP 서버 |
+| tcpProgramming/ex02.c | pthread 기반 TCP 클라이언트 |
+| udpProgramming/ex01.c | `SOCK_DGRAM` UDP 서버 |
+| udpProgramming/ex02.c | UDP 클라이언트 |
 
 ---
 
