@@ -9,6 +9,8 @@ void handler(int signo)
 
 int main() {
     signal(SIGINT, handler);
+    // signal(SIGINT, SIG_IGN);
+    // signal(SIGINT, SIG_DFL);
     while(1)
     {
         printf("signal test\n");

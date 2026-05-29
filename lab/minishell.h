@@ -13,6 +13,8 @@ int is_background(char**);
 
 void child_handler(int);
 
+int is_redirect(char **arglist);
+
 typedef struct bt_type {
 	char* cmd;
 	void(*bt_func)(char**);

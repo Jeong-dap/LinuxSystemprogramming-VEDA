@@ -1,3 +1,14 @@
+/* SIGUSR1/SIGUSR2 수신 횟수를 카운트하고, SIGINT(Ctrl+C) 시 결과를 출력하는 예제.
+ *
+ * 시그널 마스크 설정:
+ *   SIGINT, SIGUSR1, SIGUSR2 만 허용하고 나머지는 차단한다.
+ *
+ * 테스트 방법:
+ *   kill -USR1 <pid>  또는  kill -USR2 <pid>  로 시그널 전송
+ *   Ctrl+C로 카운트 확인 후 종료
+ */
+
+// 아래는 이전 버전 코드 (주석 처리됨)
 // #include <stdio.h>
 // #include <unistd.h>
 // #include <signal.h>
@@ -41,17 +52,20 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-int usr1_count = 0;
-int usr2_count = 0;
+int usr1_count = 0;  /* SIGUSR1 수신 횟수 */
+int usr2_count = 0;  /* SIGUSR2 수신 횟수 */
 
+/* SIGUSR1 핸들러 */
 void usr1_handler(int signo) {
     usr1_count++;
 }
 
+/* SIGUSR2 핸들러 */
 void usr2_handler(int signo) {
     usr2_count++;
 }
 
+/* SIGINT 핸들러: Ctrl+C 시 카운트 출력 */
 void int_handler(int signo) {
     printf("usr1 count: %d\n", usr1_count);
     printf("usr2 count: %d\n", usr2_count);
@@ -59,20 +73,20 @@ void int_handler(int signo) {
 
 int main() {
     sigset_t sigset;
-    
+
+    /* SIGINT, SIGUSR1, SIGUSR2를 제외한 모든 시그널 차단 */
     sigfillset(&sigset);
     sigdelset(&sigset, SIGINT);
     sigdelset(&sigset, SIGUSR1);
     sigdelset(&sigset, SIGUSR2);
-
-    sigprocmask(SIG_BLOCK, &sigset, NULL); 
+    sigprocmask(SIG_BLOCK, &sigset, NULL);
 
     struct sigaction act;
     act.sa_handler = int_handler;
 	sigfillset(&act.sa_mask);
 	act.sa_flags = SA_RESTART;
 	sigaction(SIGINT, &act, NULL);
-    
+
     act.sa_handler = usr1_handler;
 	sigaction(SIGUSR1, &act, NULL);
 

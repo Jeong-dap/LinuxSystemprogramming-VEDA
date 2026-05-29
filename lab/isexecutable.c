@@ -1,120 +1,279 @@
-/* 외부 명령어 실행 처리: 백그라운드(&), 파이프(|), 일반 실행을 모두 담당한다. */
+#include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <stdio.h>
 #include <string.h>
-#include <signal.h>
 #include <errno.h>
 #include "minishell.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
-#define MAXSIZE 4096
+#define OP_NONE 0
+#define OP_PIPE 1
+#define OP_OUT 2
+#define OP_IN 3
+#define OP_AND 4
+#define OP_BACKGROUND 5
 
-/* 외부 명령어를 fork()로 실행한다.
- * 파이프(|)가 있으면 두 명령어를 파이프로 연결하고,
- * 백그라운드(&)이면 부모가 waitpid 없이 즉시 반환한다. */
-void is_executable(char **arglist) {
+int get_op_type(char **args, char ***end)
+{
+    char **arg = args;
+    for (; *arg != NULL; arg++)
+    {
+        if (strcmp(*arg, "|") == 0)
+        {
+            *arg = NULL;
+            *end = arg;
+            return OP_PIPE;
+        }
+        if (strcmp(*arg, ">") == 0)
+        {
+            *arg = NULL;
+            *end = arg;
+            return OP_OUT;
+        }
+        if (strcmp(*arg, "<") == 0)
+        {
+            *arg = NULL;
+            *end = arg;
+            return OP_IN;
+        }
+        if (strcmp(*arg, "&&") == 0)
+        {
+            *arg = NULL;
+            *end = arg;
+            return OP_AND;
+        }
+        if (strcmp(*arg, "&") == 0)
+        {
+            *arg = NULL;
+            *end = arg;
+            return OP_BACKGROUND;
+        }
+    }
+    *end = arg;
+    if (*args != NULL)
+    {
+        if ((*(arg - 1))[strlen(*(arg - 1)) - 1] == '&')
+        {
+            (*(arg - 1))[strlen(*(arg - 1)) - 1] = '\0';
+            return OP_BACKGROUND;
+        }
+    }
+    return OP_NONE;
+}
+// 주어진 입출력 파일 디스크립터로 명령어를 실행하는 함수
+pid_t execute(char **arglist, int fd_in, int fd_out)
+{
+    pid_t pid = -1;
+    if (arglist == NULL || arglist[0] == NULL)
+        return -1;
 
-    /* 인자 목록 끝에 '&'가 있으면 제거 후 background=1 */
-    int background = is_background(arglist);
+    // 1. 임시로 표준 입출력 백업
+    fflush(stdout);
+    int saved_in = dup(STDIN_FILENO);
+    int saved_out = dup(STDOUT_FILENO);
+    if (saved_in == -1 || saved_out == -1)
+    {
+        perror("dup");
+        goto exit_execute;
+    }
 
-    /* 인자 목록에 '|'가 있으면 pipe_check=1 */
-    int pipe_check = is_pipe(arglist);
+    // 2. 리디렉션 적용
+    if ((fd_in != -1 && dup2(fd_in, STDIN_FILENO) == -1) || (fd_out != -1 && dup2(fd_out, STDOUT_FILENO) == -1))
+    {
+        perror("dup2");
+        goto exit_execute;
+    }
 
-    pid_t pid = fork();
-    switch (pid) {
+    // 3. 빌트인 명령어 확인 및 실행
+    if (check_builtin(arglist))
+    {
+        fflush(stdout); // 빌트인 명령어의 출력을 버퍼에서 리디렉션된 fd로 비움
+        goto exit_execute;
+    }
+
+    switch (pid = fork())
+    {
     case -1:
         perror("fork");
-        exit(-1);
-        break;
-
+        goto exit_execute;
     case 0:
-        /* 자식: Ctrl+C(SIGINT)를 기본 동작(종료)으로 복원한다.
-         * 부모 셸은 SIGINT를 무시하므로, exec 후에도 자식이 영향을 받도록 복원이 필요하다. */
-        signal(SIGINT, SIG_DFL);
-
-        if (pipe_check) {
-            /* ── 파이프 처리 ──
-             * '|' 위치를 찾아 arglist를 left / right 두 부분으로 분리한다. */
-            int pd[2];
-            pid_t pid;
-
-            int pipe_index = -1;
-            for (int i = 0; arglist[i] != NULL; i++) {
-                if (strcmp(arglist[i], "|") == 0) {
-                    pipe_index = i;
-                    break;
-                }
-            }
-            arglist[pipe_index] = NULL;         /* '|' 자리를 NULL로 덮어 left 배열 종료 */
-            char **left  = arglist;
-            char **right = &arglist[pipe_index + 1];
-
-            if (pipe(pd) == -1) {
-                perror("pipe");
-                exit(1);
-            }
-
-            switch (pid = fork()) {
-            case -1:
-                perror("fork");
-                exit(1);
-                break;
-
-            case 0:
-                /* 손자(left 명령어): stdout을 파이프 쓰기 끝으로 리다이렉트 */
-                close(pd[0]);
-                dup2(pd[1], 1);     /* pd[1] → stdout */
-                close(pd[1]);
-                execvp(left[0], left);
-                perror("execvp");
-                exit(1);
-                break;
-
-            default:
-                /* 자식(right 명령어): stdin을 파이프 읽기 끝으로 리다이렉트 */
-                close(pd[1]);
-                dup2(pd[0], 0);     /* pd[0] → stdin */
-                close(pd[0]);
-                execvp(right[0], right);
-                perror("execvp");
-                exit(1);
-                break;
-            }
-        }
-
-        /* 파이프 없는 일반 명령어 실행 */
         execvp(arglist[0], arglist);
         perror("execvp");
-        exit(1);
-        break;
-
+        exit(EXIT_FAILURE);
     default:
-        /* 부모: 포그라운드이면 자식 종료를 기다리고, 백그라운드이면 즉시 반환한다.
-         * 백그라운드 자식의 회수는 SIGCHLD 핸들러(child_handler)가 담당한다. */
-        if (!background)
-            waitpid(pid, NULL, 0);
+        goto exit_execute;
+    }
+exit_execute: 
+    if (saved_in != -1) {
+        dup2(saved_in, STDIN_FILENO);
+        close(saved_in);
+    }
+    if (saved_out != -1) {
+        dup2(saved_out, STDOUT_FILENO);
+        close(saved_out);
+    }
+    if(fd_in != -1) close(fd_in);
+    if(fd_out != -1) close(fd_out);
+    return pid;
+}
+
+void is_executable(char **arglist)
+{
+    char **cmd_arglist = arglist; // 현재 실행 대상이 될 명령어의 시작점
+    char **curr_ptr = arglist;    // 다음 연산자를 탐색할 위치
+    char **end = NULL;            // 실행 대상 인자의 끝을 가리키는 포인터
+    int fd_in = -1;               // 현재 명령어에 적용될 입력 파일 디스크립터 (파이프 입력을 이월받음)
+    int fd_out = -1;              // 현재 명령어에 적용될 출력 파일 디스크립터
+    pid_t pids[1024];             // 파이프라인내의 모든 프로세스 id를 저장할 배열
+    int pid_count = 0;
+    int background = 0;
+    pid_t pid;
+
+chain_loop:
+    end = NULL;
+    int nxt_op = get_op_type(curr_ptr, &end);
+    switch (nxt_op)
+    {
+    case OP_NONE:
+        pid = execute(cmd_arglist, fd_in, fd_out);
+        fd_in = -1;
+        fd_out = -1;
+        if (pid > 0)
+            pids[pid_count++] = pid;
+        break;
+
+    case OP_PIPE:
+        {
+            int pipefd[2];
+            if (pipe(pipefd) == -1)
+            {
+                perror("pipe");
+                goto error_exit;
+            }
+            
+            if (fd_out != -1)
+                close(pipefd[1]);
+            else
+                fd_out = pipefd[1];
+
+            // 현재 파이프 단락 실행
+            pid_t p_pid = execute(cmd_arglist, fd_in, fd_out);
+            fd_in = -1;
+            fd_out = -1;
+            if (p_pid > 0)
+                pids[pid_count++] = p_pid;
+            else {
+                close(pipefd[0]);
+                goto error_exit;
+            }
+            // 다음 루프를 돌기 위한 상태 초기화
+            cmd_arglist = end + 1;
+            curr_ptr = end + 1;
+            fd_in = pipefd[0]; // 다음 명령의 입력으로 이월
+            fd_out = -1;
+            goto chain_loop;
+        }
+
+    case OP_OUT:
+        {
+            if (end == NULL || end[1] == NULL)
+            {
+                fprintf(stderr, "minishell: syntax error near '>'\n");
+                goto error_exit;
+            }
+            if (fd_out != -1)
+                close(fd_out); // 이미 설정된 리디렉션이 있다면 닫고 새로 열기
+
+            fd_out = open(end[1], O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            if (fd_out == -1)
+            {
+                perror(end[1]);
+                goto error_exit;
+            }
+
+            // 명령어 실행은 건너뛰고 파일명 다음 인자부터 스캔을 계속 진행
+            // cmd_arglist(명령어의 첫 인자 정보)는 그대로 유지됩니다.
+            curr_ptr = end + 2;
+            goto chain_loop;
+        }
+
+    case OP_IN:
+        {
+            if (end == NULL || end[1] == NULL)
+            {
+                fprintf(stderr, "minishell: syntax error near '<'\n");
+                goto error_exit;
+            }
+            if (fd_in != -1)
+                close(fd_in); // 이전 파이프의 읽기 fd가 들어있었다면 닫고 교체
+
+            fd_in = open(end[1], O_RDONLY);
+            if (fd_in == -1)
+            {
+                perror(end[1]);
+                goto error_exit;
+            }
+
+            curr_ptr = end + 2;
+            goto chain_loop;
+        }
+
+    case OP_AND:
+        {
+            // 현재까지 구성된 명령어 실행 및 대기
+            pid_t and_pid = execute(cmd_arglist, fd_in, fd_out);
+            fd_in = -1;
+            fd_out = -1;
+            if (and_pid > 0)
+                pids[pid_count++] = and_pid;
+
+            // AND 연산자 이므로 이전 파이프라인의 모든 프로세스가 정상 종료될 때까지 대기
+            int status;
+            int last_status = 0;
+            for (int i = 0; i < pid_count; i++)
+            {
+                waitpid(pids[i], &status, 0);
+                if (pids[i] == and_pid)
+                    last_status = status;
+            }
+            pid_count = 0; // pid 리스트 비우기
+
+            // 앞 명령어가 실패(exit code != 0)했다면 && 뒤 명령어는 실행하지 않고 리턴
+            if (WIFEXITED(last_status) && WEXITSTATUS(last_status) != 0)
+                goto error_exit;
+
+            // 성공했다면 계속 진행
+            cmd_arglist = end + 1;
+            curr_ptr = end + 1;
+            fd_in = -1;
+            fd_out = -1;
+            goto chain_loop;
+        }
+
+    case OP_BACKGROUND:
+        background = 1;
+        pid_t bg_pid = execute(cmd_arglist, fd_in, fd_out);
+        fd_in = -1;
+        fd_out = -1;
+        if (bg_pid > 0)
+        {
+            pids[pid_count++] = bg_pid;
+            printf("[background] %d\n", bg_pid);
+        }
         break;
     }
-}
 
-/* arglist 끝이 '&'이면 해당 원소를 NULL로 지우고 1 반환, 아니면 0 반환 */
-int is_background(char **arglist) {
-    for (int i = 0; arglist[i] != NULL; i++) {
-        if (arglist[i + 1] == NULL && strcmp(arglist[i], "&") == 0) {
-            arglist[i] = NULL;  /* '&'를 배열에서 제거 */
-            return 1;
-        }
+error_exit:
+    // 백그라운드 실행이 아니면 파이프라인에 소속된 모든 자식 프로세스 종료 대기
+    if (!background)
+    {
+        for (int i = 0; i < pid_count; i++)
+            waitpid(pids[i], NULL, 0);
     }
-    return 0;
-}
-
-/* arglist에 '|'가 하나라도 있으면 1 반환, 아니면 0 반환 */
-int is_pipe(char **arglist) {
-    for (int i = 0; arglist[i] != NULL; i++) {
-        if (strcmp(arglist[i], "|") == 0)
-            return 1;
-    }
-    return 0;
+    if (fd_in != -1) close(fd_in);
+    if (fd_out != -1) close(fd_out);
 }
