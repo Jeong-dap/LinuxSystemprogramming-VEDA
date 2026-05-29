@@ -148,5 +148,5 @@ minishell> exit
 ### 빌드 환경
 
 - OS: Linux (Ubuntu/Debian 계열)
-- 컴파일러: GCC
+- 컴파일러: GCC, aarch64-linux-gnu-gcc
 - 표준: POSIX.1-2008
