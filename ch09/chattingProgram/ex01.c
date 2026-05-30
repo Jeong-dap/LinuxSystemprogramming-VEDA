@@ -7,8 +7,13 @@
 //#include <sys/socket.h>
 //#include <sys/wait.h>
 #include <pthread.h>
+#include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/select.h>
 
 #define BACKLOG 10
+#define MAXDATASIZE 100
 
 void *handle_client(void *arg) {        // 이 함수는 클라이언트와의 통신을 처리하는 스레드 함수
     int new_fd = *((int *)arg);         // 클라이언트 소켓 파일 디스크립터를 가져옴
@@ -17,6 +22,28 @@ void *handle_client(void *arg) {        // 이 함수는 클라이언트와의 �
         perror("send");     // 에러 처리
     close(new_fd);
     return NULL;
+}
+
+void chatting(int sd) {
+    fd_set fdset, fdset1;
+    FD_ZERO(&fdset);
+    FD_SET(0, &fdset);
+    FD_SET(sd, &fdset);
+    char buf[MAXDATASIZE];
+    while(1) {
+        fdset = fdset1;
+        select(sd+1, &fdset, NULL, NULL, NULL);
+        if (FD_ISSET(0, &fdset)) {      // send()
+            fgets(buf, MAXDATASIZE, stdin);
+            send(sd, buf, strlen(buf), 0);
+        } else if (FD_ISSET(sd, &fdset)) {      // recv()
+            recv(sd, buf, MAXDATASIZE-1, 0);
+            printf("%s\n", buf);
+        } else {        // error
+            perror("select");
+            break;
+        }
+    }
 }
 
 int main(void)
@@ -55,7 +82,7 @@ int main(void)
             continue;
         }
         printf("server : got connection from %s \n", inet_ntoa(client_addr.sin_addr));
-        
+        chatting(new_fd);  // 클라이언트와의 통신을 처리하는 함수 호출
         // if(!fork()) {
         //     close(sockfd);
         //     if(send(new_fd, "Hello, client!\n", 14, 0) == -1)

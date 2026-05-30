@@ -9,8 +9,33 @@
 // #include <netinet/in.h>
 #include <arpa/inet.h>      // struct sockaddr_in, inet_ntoa
 #include <unistd.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/select.h>
 
 #define MAXDATASIZE 100
+
+void chatting(int sd) {
+    fd_set fdset, fdset1;
+    FD_ZERO(&fdset);
+    FD_SET(0, &fdset);
+    FD_SET(sd, &fdset);
+    char buf[MAXDATASIZE];
+    while(1) {
+        fdset = fdset1;
+        select(sd+1, &fdset, NULL, NULL, NULL);
+        if (FD_ISSET(0, &fdset)) {      // send()
+            fgets(buf, MAXDATASIZE, stdin);
+            send(sd, buf, strlen(buf), 0);
+        } else if (FD_ISSET(sd, &fdset)) {      // recv()
+            recv(sd, buf, MAXDATASIZE-1, 0);
+            printf("%s\n", buf);
+        } else {        // error
+            perror("select");
+            break;
+        }
+    }
+}
 
 int main(int argc, char *argv[])        // 서버에 접속해서 메시지를 받는 클라이언트 프로그램
 {
@@ -49,7 +74,7 @@ int main(int argc, char *argv[])        // 서버에 접속해서 메시지를 �
        exit(1);
    }
    buf[numbytes] = '\0';        // 수신한 메시지의 끝에 널 문자 추가해서 문자열로 만듦
-   printf("Received : %s\n", buf);  // 수신한 메시지 출력
+   chatting(sockfd);  // 클라이언트와의 통신을 처리하는 함수 호출
    close(sockfd);
    return 0;
 }
