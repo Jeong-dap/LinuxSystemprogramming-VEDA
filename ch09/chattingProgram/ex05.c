@@ -61,8 +61,16 @@ int main(int argc, char **argv)
                     close(client_list[i].data.fd);
                     printf("Close fd\n");
                 } else {
-                    printf("read data %s\n", buf_in);
-                    write(client_list[i].data.fd, buf_in, readn);
+                    // client - server 통신
+                    // printf("read data %s\n", buf_in);
+                    // write(client_list[i].data.fd, buf_in, readn);
+                    // 이 다음꺼는 client_list[i].data.fd로 받은 데이터를 모든 클라이언트에게 전송
+                    int j;
+                    for (j = 0; j < n; j++) {
+                        if (client_list[j].data.fd != sockfd && client_list[j].data.fd != client_list[i].data.fd) {
+                            write(client_list[j].data.fd, buf_in, readn);
+                        }
+                    }
                 }
             }   // else-end
          } // for-end

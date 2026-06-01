@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LED Control Web Panel</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #0d0d14;
+            background-image:
+                radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(168, 85, 247, 0.06) 0%, transparent 50%);
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 44px 48px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 32px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+            min-width: 360px;
+        }
+
+        .header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .led-indicator {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #334155;
+            box-shadow: 0 0 0 3px rgba(51, 65, 85, 0.3);
+            transition: background 0.4s, box-shadow 0.4s;
+        }
+
+        .led-indicator.on {
+            background: #4ade80;
+            box-shadow: 0 0 10px 4px rgba(74, 222, 128, 0.5);
+        }
+
+        .led-indicator.blink {
+            background: #fb923c;
+            box-shadow: 0 0 10px 4px rgba(251, 146, 60, 0.5);
+            animation: blink-anim 0.7s infinite alternate;
+        }
+
+        @keyframes blink-anim {
+            from { opacity: 1; }
+            to   { opacity: 0.15; }
+        }
+
+        h1 {
+            color: #f1f5f9;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+
+        .subtitle {
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 400;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+        }
+
+        button {
+            padding: 13px 28px;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            cursor: pointer;
+            color: white;
+            transition: transform 0.12s, box-shadow 0.2s, opacity 0.2s;
+            text-transform: uppercase;
+        }
+
+        button:active {
+            transform: scale(0.94);
+        }
+
+        button:hover {
+            opacity: 0.88;
+        }
+
+        #btn-on {
+            background: linear-gradient(135deg, #16a34a, #22c55e);
+            border-color: rgba(74, 222, 128, 0.25);
+            box-shadow: 0 4px 18px rgba(34, 197, 94, 0.25);
+        }
+
+        #btn-off {
+            background: linear-gradient(135deg, #b91c1c, #ef4444);
+            border-color: rgba(248, 113, 113, 0.25);
+            box-shadow: 0 4px 18px rgba(239, 68, 68, 0.25);
+        }
+
+        #btn-blink {
+            background: linear-gradient(135deg, #c2410c, #f97316);
+            border-color: rgba(251, 146, 60, 0.25);
+            box-shadow: 0 4px 18px rgba(249, 115, 22, 0.25);
+        }
+
+        #btn-on:hover    { box-shadow: 0 6px 24px rgba(34, 197, 94, 0.4); }
+        #btn-off:hover   { box-shadow: 0 6px 24px rgba(239, 68, 68, 0.4); }
+        #btn-blink:hover { box-shadow: 0 6px 24px rgba(249, 115, 22, 0.4); }
+
+        .status-box {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #475569;
+            flex-shrink: 0;
+            transition: background 0.3s;
+        }
+
+        #status-message {
+            font-size: 13px;
+            color: #94a3b8;
+            transition: color 0.3s;
+        }
+
+        .status-box.success .status-dot { background: #4ade80; }
+        .status-box.success #status-message { color: #86efac; }
+
+        .status-box.error .status-dot { background: #f87171; }
+        .status-box.error #status-message { color: #fca5a5; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <div class="header">
+            <div class="led-indicator" id="led-indicator"></div>
+            <h1>LED 제어</h1>
+            <span class="subtitle">Raspberry Pi · GPIO Control</span>
+        </div>
+
+        <div class="button-group">
+            <button id="btn-on"    onclick="sendLedCommand('on')">ON</button>
+            <button id="btn-off"   onclick="sendLedCommand('off')">OFF</button>
+            <button id="btn-blink" onclick="sendLedCommand('blink')">BLINK</button>
+        </div>
+
+        <div class="status-box" id="status-box">
+            <div class="status-dot"></div>
+            <div id="status-message">대기 중...</div>
+        </div>
+    </div>
+
+    <script>
+        const serverUrl = "http://172.20.33.117:8080";
+
+        function sendLedCommand(command) {
+            const statusDiv = document.getElementById('status-message');
+            const statusBox = document.getElementById('status-box');
+            const indicator = document.getElementById('led-indicator');
+
+            statusBox.className = 'status-box';
+            statusDiv.innerText = `'${command.toUpperCase()}' 명령 전송 중...`;
+
+            fetch(`/${command}`, { method: 'GET', mode: 'cors' })
+                .then(response => {
+                    if (response.ok) {
+                        statusBox.className = 'status-box success';
+                        statusDiv.innerText = `'${command.toUpperCase()}' 요청이 성공적으로 처리되었습니다.`;
+                        indicator.className = 'led-indicator ' + (command === 'off' ? '' : command);
+                    } else {
+                        statusBox.className = 'status-box error';
+                        statusDiv.innerText = `서버 응답 오류 (상태 코드: ${response.status})`;
+                    }
+                })
+                .catch(error => {
+                    console.error('요청 실패:', error);
+                    statusBox.className = 'status-box error';
+                    statusDiv.innerText = '네트워크 오류가 발생했습니다. IP/포트를 확인하세요.';
+                });
+        }
+    </script>
+</body>
+</html>
