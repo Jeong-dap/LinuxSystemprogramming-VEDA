@@ -18,7 +18,11 @@ lsnp/
 ├── ch06-2/     # 프로세스 그룹 & 세션 (setpgid, kill to group)
 ├── ch07/       # IPC — 파이프 (popen, pipe, dup+exec)
 ├── ch08/       # POSIX 스레드 (pthread_create, mutex, 시그널)
-├── ch09/       # 소켓 프로그래밍 (TCP/UDP, 주소 변환)
+├── ch09/       # 소켓 프로그래밍 (TCP/UDP, 주소 변환, 채팅, LED 제어)
+│   ├── tcpProgramming/         # pthread 기반 TCP 서버/클라이언트
+│   ├── udpProgramming/         # UDP 서버/클라이언트
+│   ├── chattingProgram/        # 채팅 프로그램 (select/poll/epoll, 데몬, RPi LED)
+│   └── webLED/                 # 웹 서버 + Raspberry Pi LED 제어
 └── lab/        # 미니쉘 프로젝트
 ```
 
@@ -97,10 +101,36 @@ lsnp/
 | ex04.c | `getaddrinfo`로 호스트명 → IP 주소 조회 |
 | ex05.c | `fork()` 기반 멀티클라이언트 TCP 서버 |
 | ex06.c | TCP 클라이언트 (`gethostbyname` + `connect` + `recv`) |
+| msg_server.c | `poll` + `pthread` + 메시지 큐 기반 멀티클라이언트 서버 |
+| msg_client.c | 메시지 서버용 TCP 클라이언트 |
 | tcpProgramming/ex01.c | `pthread` 기반 멀티클라이언트 TCP 서버 |
 | tcpProgramming/ex02.c | pthread 기반 TCP 클라이언트 |
 | udpProgramming/ex01.c | `SOCK_DGRAM` UDP 서버 |
 | udpProgramming/ex02.c | UDP 클라이언트 |
+
+#### chattingProgram/
+| 파일 | 내용 |
+|------|------|
+| ex01.c | `pthread` 기반 채팅 서버 |
+| ex02.c | `select` 기반 채팅 클라이언트 |
+| ex03.c | `poll` 기반 채팅 클라이언트 |
+| ex04.c | `poll` 기반 채팅 서버 |
+| ex05.c | `epoll` 기반 채팅 서버 |
+| ex06.c | `epoll` + `pthread` 기반 멀티스레드 채팅 서버 |
+| TCPChattingServer.c | TCP 채팅 서버 |
+| TCPChattingClient.c | TCP 채팅 클라이언트 |
+| daemon.c | `syslog` 기반 데몬 프로세스 구현 |
+| rpi6.c | Raspberry Pi GPIO(wiringPi) + 소켓 기반 LED 원격 제어 |
+| webserver.c | HTTP 웹 서버 구현 |
+
+#### webLED/
+| 파일 | 내용 |
+|------|------|
+| webserver.c | 웹 서버 + Raspberry Pi LED 원격 제어 통합 |
+| led.c | wiringPi 기반 LED on/off 라이브러리 |
+| wiring.c | GPIO 핀 설정 |
+| thread.c | 요청 처리용 스레드 |
+| led.html | LED 제어 웹 UI |
 
 ---
 
